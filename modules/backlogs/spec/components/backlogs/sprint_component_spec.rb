@@ -259,8 +259,8 @@ RSpec.describe Backlogs::SprintComponent, type: :component do
           rendered_component
 
           expect(menu_items).to eq(["Edit sprint", "Add work package", "Sprint board", "Burndown chart"])
-          expect(page).to have_list_item position: 2, role: "presentation"
-          expect(page).to have_list_item position: 4, role: "presentation"
+          expect(page).to have_css("li:nth-child(2)[role='presentation']", aria: { hidden: true })
+          expect(page).to have_css("li:nth-child(4)[role='presentation']", aria: { hidden: true })
         end
       end
     end
