@@ -69,7 +69,7 @@ module Backlogs
       @sprints = Sprint.for_project(@project)
                        .not_completed
                        .order_by_date
-                       .includes(:project, :task_boards, :goals)
+                       .includes(:project, :task_boards)
 
       @work_packages_by_sprint_id = WorkPackage
                                       .where(sprint: @sprints, project: @project)
