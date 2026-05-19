@@ -121,7 +121,16 @@ module Backlogs
       sprint.active?
     end
 
-    def user_allowed?(permission)
+    def can_open_edit_dialog?
+      if sprint.owned_by?(project)
+        user_allowed?(:create_sprints)
+      else
+        user_allowed?(:create_sprints) ||
+          user_allowed?(:create_sprints, project: sprint.project)
+      end
+    end
+
+    def user_allowed?(permission, project: self.project)
       current_user.allowed_in_project?(permission, project)
     end
   end

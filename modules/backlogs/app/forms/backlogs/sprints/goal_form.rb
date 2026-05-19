@@ -29,38 +29,46 @@
 #++
 
 module Backlogs
-  class SprintDialogComponent < ApplicationComponent
-    include OpTurbo::Streamable
-    include OpPrimer::ComponentHelpers
-    include Primer::FetchOrFallbackHelper
+  module Sprints
+    class GoalForm < ApplicationForm
+      attr_reader :project, :disabled
 
-    DIALOG_ID = "sprint-dialog"
-    FORM_ID = "sprint-dialog-form"
-    FOOTER_ID = "sprint-dialog-footer"
+      def initialize(project:, disabled: false)
+        @project = project
+        @disabled = disabled
+        super()
+      end
 
-    STATE_DEFAULT = :create
-    STATE_OPTIONS = [STATE_DEFAULT, :edit].freeze
+      form do |f|
+        f.text_field(
+          name: :goal,
+          label: goal_label,
+          value: goal_value,
+          caption: goal_caption,
+          disabled:,
+          full_width: true
+        )
+      end
 
-    attr_reader :sprint, :project, :state
+      def goal_label
+        label = attribute_name(:goal)
+        label += " #{I18n.t('backlogs.sprint_form.goal_for_this_project_suffix')}" if shared_sprint?
+        label
+      end
 
-    delegate :create?, :edit?, to: :state
+      def goal_value
+        model.goal_text_for(project)
+      end
 
-    def initialize(sprint:, project:, state: STATE_DEFAULT)
-      super
+      def goal_caption
+        I18n.t("backlogs.sprint_form.goal_caption") if shared_sprint?
+      end
 
-      @sprint = sprint
-      @project = project
-      @state = ActiveSupport::StringInquirer.new(fetch_or_fallback(STATE_OPTIONS, state, STATE_DEFAULT).to_s)
-    end
+      private
 
-    private
-
-    def title
-      create? ? t(:label_sprint_new) : t(:label_sprint_edit)
-    end
-
-    def button_caption
-      create? ? t(:button_create) : t(:button_save)
+      def shared_sprint?
+        model.persisted? && !model.owned_by?(project)
+      end
     end
   end
 end
