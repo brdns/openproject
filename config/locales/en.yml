@@ -2933,6 +2933,7 @@ en:
   button_filter: "Filter"
   button_finish_setup: "Finish setup"
   button_generate: "Generate"
+  button_link: "Link"
   button_list: "List"
   button_lock: "Lock"
   button_login: "Sign in"
