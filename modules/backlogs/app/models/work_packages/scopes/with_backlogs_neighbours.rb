@@ -33,11 +33,11 @@ module WorkPackages::Scopes::WithBacklogsNeighbours
 
   class_methods do
     def with_backlogs_neighbours
-      # The subquery is required because window functions run before WHERE clauses.
-      # Chaining .find(id) directly would filter rows first, leaving the window function
-      # with a single row and returning nil for all neighbours. Wrapping in a subquery
-      # lets the window function see the full scope, then the outer query filters to the
-      # requested record.
+      # The subquery is required because WHERE clauses are applied before window functions
+      # within a single SELECT. Chaining .find(id) directly would therefore filter rows
+      # first, leaving the window function with a single row and returning nil for all
+      # neighbours. Wrapping in a subquery lets the window function see the full scope,
+      # then the outer query filters to the requested record.
       subquery = order_by_position.select(
         "*, LAG(id)    OVER (ORDER BY position) AS prev_id,
             LAG(id, 2) OVER (ORDER BY position) AS prev_prev_id,
