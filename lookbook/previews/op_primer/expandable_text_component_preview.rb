@@ -31,26 +31,41 @@
 module OpPrimer
   # @logical_path OpenProject/Primer
   class ExpandableTextComponentPreview < Lookbook::Preview
-    # Renders a single expandable text in a constrained container
+    # Horizontal truncation with inline expansion (default)
     def default
       render_with_template
     end
 
-    # Renders text that fits without truncation (expander stays hidden)
+    # Text that fits without truncation (expander stays hidden)
     def short_text
       render(OpPrimer::ExpandableTextComponent.new) { "Short text" }
     end
 
-    # Renders expandable text inside a table, mimicking the Permissions Report layout
+    # Horizontal truncation inside a table, mimicking the Permissions Report layout
     def in_table
       render_with_template
     end
 
-    # Interactive playground
+    # Vertical truncation with inline expansion using line-clamp
+    # @param lines range { min: 1, max: 6, step: 1 } Number of visible lines
+    def vertical(lines: 3)
+      render_with_template(locals: { lines: })
+    end
+
+    # Vertical truncation where the expander opens a dialog instead of expanding inline
+    def dialog
+      render_with_template
+    end
+
+    # Interactive playground for all modes
     # @param text text The text content to display
     # @param width range { min: 100, max: 600, step: 10 } Container width in pixels
-    def playground(text: "Automatically managed project folders: Share files and manage permissions", width: 200)
-      render_with_template(locals: { text:, width: })
+    # @param truncation select { choices: [horizontal, vertical] } Truncation direction
+    # @param lines range { min: 1, max: 6, step: 1 } Lines (vertical mode only)
+    # @param inline toggle Expand inline or via external action
+    def playground(text: "Automatically managed project folders: Share files and manage permissions",
+                   width: 200, truncation: :horizontal, lines: 3, inline: true)
+      render_with_template(locals: { text:, width:, truncation: truncation.to_sym, lines:, inline: })
     end
   end
 end
