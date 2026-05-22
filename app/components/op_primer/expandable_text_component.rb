@@ -29,22 +29,47 @@
 #++
 #
 module OpPrimer
-  class ExpandableTextComponent < Primer::Component # rubocop:disable OpenProject/AddPreviewForViewComponent
-    def initialize(**system_arguments)
+  class ExpandableTextComponent < Primer::Component
+    TRUNCATION_MODES = %i[horizontal vertical].freeze
+
+    attr_reader :truncation, :lines, :inline
+
+    def initialize(truncation: :horizontal, lines: 3, inline: true, expander_arguments: {}, **system_arguments)
       super()
+
+      raise ArgumentError, "truncation must be one of #{TRUNCATION_MODES}" unless TRUNCATION_MODES.include?(truncation)
+
+      @truncation = truncation
+      @lines = lines
+      @inline = inline
+      @expander_arguments = expander_arguments
 
       @system_arguments = deny_tag_argument(**system_arguments)
       @system_arguments[:tag] = :div
       @system_arguments[:display] = :flex
-      @system_arguments[:align_items] = :baseline
+      @system_arguments[:align_items] = truncation == :vertical ? :flex_start : :baseline
       @system_arguments[:data] = merge_data(
         @system_arguments,
-        data: { controller: "truncation" }
+        data: {
+          controller: "truncation",
+          truncation_mode_value: truncation,
+          truncation_inline_value: inline
+        }
       )
       @system_arguments[:classes] = class_names(
         @system_arguments[:classes],
         "gap-1 min-width-0"
       )
+    end
+
+    def expander_system_arguments
+      base = {
+        hidden: true,
+        mt: 1,
+        aria: { label: t(:"js.label_expand_text") },
+        data: { truncation_target: "expander" }
+      }
+      base.deep_merge(@expander_arguments)
     end
   end
 end

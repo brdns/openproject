@@ -67,8 +67,8 @@ describe('TruncationController', () => {
     await nextFrame();
   });
 
-  const truncationTemplate = `
-  <div data-controller="truncation" data-truncation-expanded-value="false">
+  const horizontalTemplate = `
+  <div data-controller="truncation" data-truncation-expanded-value="false" data-truncation-mode-value="horizontal" data-truncation-inline-value="true">
    <div data-truncation-target="truncate" style="width: 200px; overflow: hidden;">
     <span class="Truncate-text" style="display: inline-block; white-space: nowrap;">
      This is a very long text that should be truncated when it exceeds the container width
@@ -80,132 +80,158 @@ describe('TruncationController', () => {
   </div>
  `;
 
+  const verticalTemplate = `
+  <div data-controller="truncation" data-truncation-expanded-value="false" data-truncation-mode-value="vertical" data-truncation-inline-value="true">
+   <div data-truncation-target="truncate" class="line-clamp-3" style="overflow: hidden;">
+    <p>Line one of a multi-line block of text.</p>
+    <p>Line two with more content.</p>
+    <p>Line three extends beyond the clamp limit.</p>
+    <p>Line four is hidden by the clamp.</p>
+   </div>
+   <div data-truncation-target="expander">
+    <button type="button">Toggle</button>
+   </div>
+  </div>
+ `;
+
+  const dialogTemplate = `
+  <div data-controller="truncation" data-truncation-expanded-value="false" data-truncation-mode-value="vertical" data-truncation-inline-value="false">
+   <div data-truncation-target="truncate" class="line-clamp-3" style="overflow: hidden;">
+    <p>Content that opens in a dialog.</p>
+   </div>
+   <div data-truncation-target="expander">
+    <button type="button" data-show-dialog-id="my-dialog">Toggle</button>
+   </div>
+  </div>
+ `;
+
   function appendTemplate(html:string) {
     const template = document.createElement('template');
     template.innerHTML = html.trim();
     fixturesElement.appendChild(template.content.cloneNode(true));
   }
 
-  describe('initialization', () => {
-    beforeEach(async () => {
-      appendTemplate(truncationTemplate);
-      await nextFrame();
+  describe('horizontal mode', () => {
+    describe('initialization', () => {
+      beforeEach(async () => {
+        appendTemplate(horizontalTemplate);
+        await nextFrame();
+      });
+
+      it('connects successfully', () => {
+        const controller = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+
+        expect(controller).toBeDefined();
+      });
+
+      it('sets initial aria attributes on expander button', () => {
+        const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+
+        expect(button.getAttribute('aria-label')).toBe('Expand text');
+        expect(button.getAttribute('aria-expanded')).toBe('false');
+      });
+
+      it('adds Truncate--expanded class when expanded value is true', async () => {
+        const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
+
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+
+        controller.expandedValue = true;
+        await nextFrame();
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(true);
+      });
     });
 
-    it('connects successfully', () => {
-      const controller = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+    describe('expander button click', () => {
+      beforeEach(async () => {
+        appendTemplate(horizontalTemplate);
+        await nextFrame();
+      });
 
-      expect(controller).toBeDefined();
+      it('toggles expanded state', async () => {
+        const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+        const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
+        expect(button.getAttribute('aria-expanded')).toBe('false');
+
+        button.click();
+        await nextFrame();
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(true);
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+        expect(button.getAttribute('aria-label')).toBe('Collapse text');
+
+        button.click();
+        await nextFrame();
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
+        expect(button.getAttribute('aria-expanded')).toBe('false');
+        expect(button.getAttribute('aria-label')).toBe('Expand text');
+      });
     });
 
-    it('sets initial aria attributes on expander button', () => {
-      const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+    describe('expandedValue changes', () => {
+      beforeEach(async () => {
+        appendTemplate(horizontalTemplate);
+        await nextFrame();
+      });
 
-      expect(button.getAttribute('aria-label')).toBe('Expand text');
-      expect(button.getAttribute('aria-expanded')).toBe('false');
+      it('updates aria-label when expanded', async () => {
+        const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+
+        expect(button.getAttribute('aria-label')).toBe('Expand text');
+
+        controller.expandedValue = true;
+        await nextFrame();
+
+        expect(button.getAttribute('aria-label')).toBe('Collapse text');
+      });
+
+      it('updates aria-expanded attribute', async () => {
+        const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+
+        expect(button.getAttribute('aria-expanded')).toBe('false');
+
+        controller.expandedValue = true;
+        await nextFrame();
+
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+      });
+
+      it('toggles Truncate--expanded class', async () => {
+        const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
+
+        controller.expandedValue = true;
+        await nextFrame();
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(true);
+
+        controller.expandedValue = false;
+        await nextFrame();
+
+        expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
+      });
     });
 
-    it('adds Truncate--expanded class when expanded value is true', async () => {
-      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+    describe('expander visibility', () => {
+      // Helper to wait for ResizeObserver to process updates
+      const waitForResize = async () => {
+        // Wait multiple frames to ensure ResizeObserver has fired
+        await nextFrame();
+        await nextFrame();
+      };
 
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
-
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
-
-      controller.expandedValue = true;
-      await nextFrame();
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(true);
-    });
-  });
-
-  describe('expander button click', () => {
-    beforeEach(async () => {
-      appendTemplate(truncationTemplate);
-      await nextFrame();
-    });
-
-    it('toggles expanded state', async () => {
-      const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
-      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
-      expect(button.getAttribute('aria-expanded')).toBe('false');
-
-      button.click();
-      await nextFrame();
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(true);
-      expect(button.getAttribute('aria-expanded')).toBe('true');
-      expect(button.getAttribute('aria-label')).toBe('Collapse text');
-
-      button.click();
-      await nextFrame();
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
-      expect(button.getAttribute('aria-expanded')).toBe('false');
-      expect(button.getAttribute('aria-label')).toBe('Expand text');
-    });
-  });
-
-  describe('expandedValue changes', () => {
-    beforeEach(async () => {
-      appendTemplate(truncationTemplate);
-      await nextFrame();
-    });
-
-    it('updates aria-label when expanded', async () => {
-      const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
-
-      expect(button.getAttribute('aria-label')).toBe('Expand text');
-
-      controller.expandedValue = true;
-      await nextFrame();
-
-      expect(button.getAttribute('aria-label')).toBe('Collapse text');
-    });
-
-    it('updates aria-expanded attribute', async () => {
-      const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
-
-      expect(button.getAttribute('aria-expanded')).toBe('false');
-
-      controller.expandedValue = true;
-      await nextFrame();
-
-      expect(button.getAttribute('aria-expanded')).toBe('true');
-    });
-
-    it('toggles Truncate--expanded class', async () => {
-      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
-
-      controller.expandedValue = true;
-      await nextFrame();
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(true);
-
-      controller.expandedValue = false;
-      await nextFrame();
-
-      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
-    });
-  });
-
-  describe('expander visibility', () => {
-    // Helper to wait for ResizeObserver to process updates
-    const waitForResize = async () => {
-      // Wait multiple frames to ensure ResizeObserver has fired
-      await nextFrame();
-      await nextFrame();
-    };
-
-    it('hides expander when content is not truncated', async () => {
-      const shortTextTemplate = `
+      it('hides expander when content is not truncated', async () => {
+        const shortTextTemplate = `
     <div data-controller="truncation" data-truncation-expanded-value="false">
      <div data-truncation-target="truncate" style="width: 500px; overflow: hidden;">
       <span class="Truncate-text" style="display: inline-block; white-space: nowrap;">
@@ -218,17 +244,17 @@ describe('TruncationController', () => {
     </div>
    `;
 
-      appendTemplate(shortTextTemplate);
-      await waitForResize();
+        appendTemplate(shortTextTemplate);
+        await waitForResize();
 
-      const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+        const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
 
-      // When content is not truncated, expander should be hidden
-      expect(expander.hidden).toBe(true);
-    });
+        // When content is not truncated, expander should be hidden
+        expect(expander.hidden).toBe(true);
+      });
 
-    it('shows expander when content is truncated', async () => {
-      const longTextTemplate = `
+      it('shows expander when content is truncated', async () => {
+        const longTextTemplate = `
     <div data-controller="truncation" data-truncation-expanded-value="false">
      <div data-truncation-target="truncate" style="width: 50px; overflow: hidden;">
       <span class="Truncate-text" style="display: inline-block; white-space: nowrap; width: 300px;">
@@ -241,24 +267,24 @@ describe('TruncationController', () => {
     </div>
    `;
 
-      appendTemplate(longTextTemplate);
+        appendTemplate(longTextTemplate);
 
-      const truncateText = document.querySelector<HTMLElement>('.Truncate-text')!;
-      Object.defineProperty(truncateText, 'scrollWidth', { value: 300, configurable: true });
-      Object.defineProperty(truncateText, 'clientWidth', { value: 50, configurable: true });
+        const truncateText = document.querySelector<HTMLElement>('.Truncate-text')!;
+        Object.defineProperty(truncateText, 'scrollWidth', { value: 300, configurable: true });
+        Object.defineProperty(truncateText, 'clientWidth', { value: 50, configurable: true });
 
-      await waitForResize();
+        await waitForResize();
 
-      const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+        const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
 
-      // When content is truncated, expander should be visible
-      expect(expander.hidden).toBe(false);
+        // When content is truncated, expander should be visible
+        expect(expander.hidden).toBe(false);
+      });
     });
-  });
 
-  describe('resize() method', () => {
-    it('calls update() when resize is triggered', async () => {
-      const template = `
+    describe('resize() method', () => {
+      it('calls update() when resize is triggered', async () => {
+        const template = `
     <div data-controller="truncation" data-truncation-expanded-value="false">
      <div data-truncation-target="truncate" style="width: 100px; overflow: hidden;">
       <span class="Truncate-text" style="display: inline-block; white-space: nowrap;">
@@ -271,21 +297,21 @@ describe('TruncationController', () => {
     </div>
    `;
 
-      appendTemplate(template);
-      await nextFrame();
+        appendTemplate(template);
+        await nextFrame();
 
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
 
-      // Spy on the private update method to verify resize() calls it
-      const updateSpy = vi.spyOn(controller, 'update');
+        // Spy on the private update method to verify resize() calls it
+        const updateSpy = vi.spyOn(controller, 'update');
 
-      controller.resize();
+        controller.resize();
 
-      expect(updateSpy).toHaveBeenCalledWith();
-    });
+        expect(updateSpy).toHaveBeenCalledWith();
+      });
 
-    it('updates expander visibility when content dimensions change', async () => {
-      const template = `
+      it('updates expander visibility when content dimensions change', async () => {
+        const template = `
     <div data-controller="truncation" data-truncation-expanded-value="false">
      <div data-truncation-target="truncate" style="width: 100px; overflow: hidden;">
       <span class="Truncate-text" style="display: inline-block; white-space: nowrap;">
@@ -298,49 +324,49 @@ describe('TruncationController', () => {
     </div>
    `;
 
-      appendTemplate(template);
-      await nextFrame();
+        appendTemplate(template);
+        await nextFrame();
 
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
-      const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
-      const truncateText = document.querySelector<HTMLElement>('.Truncate-text')!;
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+        const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+        const truncateText = document.querySelector<HTMLElement>('.Truncate-text')!;
 
-      // Mock scrollWidth and clientWidth to simulate truncation state
-      const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
-      const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+        // Mock scrollWidth and clientWidth to simulate truncation state
+        const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+        const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
 
-      // Simulate not truncated: scrollWidth === clientWidth
-      Object.defineProperty(truncateText, 'scrollWidth', { configurable: true, value: 100 });
-      Object.defineProperty(truncateText, 'clientWidth', { configurable: true, value: 100 });
-      controller.resize();
+        // Simulate not truncated: scrollWidth === clientWidth
+        Object.defineProperty(truncateText, 'scrollWidth', { configurable: true, value: 100 });
+        Object.defineProperty(truncateText, 'clientWidth', { configurable: true, value: 100 });
+        controller.resize();
 
-      expect(expander.hidden).toBe(true);
+        expect(expander.hidden).toBe(true);
 
-      // Simulate truncated: scrollWidth > clientWidth
-      Object.defineProperty(truncateText, 'scrollWidth', { configurable: true, value: 200 });
-      Object.defineProperty(truncateText, 'clientWidth', { configurable: true, value: 100 });
-      controller.resize();
+        // Simulate truncated: scrollWidth > clientWidth
+        Object.defineProperty(truncateText, 'scrollWidth', { configurable: true, value: 200 });
+        Object.defineProperty(truncateText, 'clientWidth', { configurable: true, value: 100 });
+        controller.resize();
 
-      expect(expander.hidden).toBe(false);
+        expect(expander.hidden).toBe(false);
 
-      // Simulate not truncated again
-      Object.defineProperty(truncateText, 'scrollWidth', { configurable: true, value: 50 });
-      Object.defineProperty(truncateText, 'clientWidth', { configurable: true, value: 50 });
-      controller.resize();
+        // Simulate not truncated again
+        Object.defineProperty(truncateText, 'scrollWidth', { configurable: true, value: 50 });
+        Object.defineProperty(truncateText, 'clientWidth', { configurable: true, value: 50 });
+        controller.resize();
 
-      expect(expander.hidden).toBe(true);
+        expect(expander.hidden).toBe(true);
 
-      // Restore original descriptors
-      if (originalScrollWidth) {
-        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
-      }
-      if (originalClientWidth) {
-        Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
-      }
-    });
+        // Restore original descriptors
+        if (originalScrollWidth) {
+          Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
+        }
+        if (originalClientWidth) {
+          Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+        }
+      });
 
-    it('keeps expander visible when expanded even if not truncated', async () => {
-      const template = `
+      it('keeps expander visible when expanded even if not truncated', async () => {
+        const template = `
     <div data-controller="truncation" data-truncation-expanded-value="false">
      <div data-truncation-target="truncate" style="width: 200px; overflow: hidden;">
       <span class="Truncate-text" style="display: inline-block; white-space: nowrap;">
@@ -353,22 +379,177 @@ describe('TruncationController', () => {
     </div>
    `;
 
-      appendTemplate(template);
+        appendTemplate(template);
+        await nextFrame();
+
+        const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+        const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+
+        // Initially short text, expander should be hidden
+        controller.resize();
+
+        expect(expander.hidden).toBe(true);
+
+        // Expand the text
+        controller.expandedValue = true;
+        await nextFrame();
+
+        // When expanded, expander should remain visible even if not truncated
+        expect(expander.hidden).toBe(false);
+      });
+    });
+  });
+
+  describe('vertical mode', () => {
+    it('connects successfully', async () => {
+      appendTemplate(verticalTemplate);
       await nextFrame();
 
-      const controller:any = Stimulus.getControllerForElementAndIdentifier(document.querySelector('[data-controller="truncation"]')!, 'truncation');
+      const controller = Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector('[data-controller="truncation"]')!, 'truncation',
+      );
+
+      expect(controller).toBeDefined();
+    });
+
+    it('detects vertical truncation via scrollHeight > clientHeight', async () => {
+      appendTemplate(verticalTemplate);
+      await nextFrame();
+
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
       const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
 
-      // Initially short text, expander should be hidden
+      Object.defineProperty(truncateEl, 'scrollHeight', { configurable: true, value: 200 });
+      Object.defineProperty(truncateEl, 'clientHeight', { configurable: true, value: 60 });
+
+      const controller:any = Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector('[data-controller="truncation"]')!, 'truncation',
+      );
+      controller.resize();
+
+      expect(expander.hidden).toBe(false);
+    });
+
+    it('hides expander when content fits within line-clamp', async () => {
+      appendTemplate(verticalTemplate);
+      await nextFrame();
+
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+      const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+
+      Object.defineProperty(truncateEl, 'scrollHeight', { configurable: true, value: 60 });
+      Object.defineProperty(truncateEl, 'clientHeight', { configurable: true, value: 60 });
+
+      const controller:any = Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector('[data-controller="truncation"]')!, 'truncation',
+      );
       controller.resize();
 
       expect(expander.hidden).toBe(true);
+    });
 
-      // Expand the text
+    it('toggles expandable-text--expanded class instead of Truncate--expanded', async () => {
+      appendTemplate(verticalTemplate);
+      await nextFrame();
+
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+      const controller:any = Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector('[data-controller="truncation"]')!, 'truncation',
+      );
+
       controller.expandedValue = true;
       await nextFrame();
 
-      // When expanded, expander should remain visible even if not truncated
+      expect(truncateEl.classList.contains('expandable-text--expanded')).toBe(true);
+      expect(truncateEl.classList.contains('Truncate--expanded')).toBe(false);
+
+      controller.expandedValue = false;
+      await nextFrame();
+
+      expect(truncateEl.classList.contains('expandable-text--expanded')).toBe(false);
+    });
+
+    it('handles click to toggle expansion', async () => {
+      appendTemplate(verticalTemplate);
+      await nextFrame();
+
+      const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+
+      button.click();
+      await nextFrame();
+
+      expect(truncateEl.classList.contains('expandable-text--expanded')).toBe(true);
+      expect(button.getAttribute('aria-expanded')).toBe('true');
+
+      button.click();
+      await nextFrame();
+
+      expect(truncateEl.classList.contains('expandable-text--expanded')).toBe(false);
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+    });
+  });
+
+  describe('dialog mode (inline: false)', () => {
+    it('does not attach click handler to expander', async () => {
+      appendTemplate(dialogTemplate);
+      await nextFrame();
+
+      const button = document.querySelector<HTMLButtonElement>('[data-truncation-target="expander"] button')!;
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+
+      button.click();
+      await nextFrame();
+
+      expect(truncateEl.classList.contains('expandable-text--expanded')).toBe(false);
+    });
+
+    it('still manages expander visibility based on truncation', async () => {
+      appendTemplate(dialogTemplate);
+      await nextFrame();
+
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+      const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+
+      Object.defineProperty(truncateEl, 'scrollHeight', { configurable: true, value: 200 });
+      Object.defineProperty(truncateEl, 'clientHeight', { configurable: true, value: 60 });
+
+      const controller:any = Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector('[data-controller="truncation"]')!, 'truncation',
+      );
+      controller.resize();
+
+      expect(expander.hidden).toBe(false);
+    });
+
+    it('preserves server-rendered expander when content fits but has omitted paragraphs', async () => {
+      const serverVisibleTemplate = `
+      <div data-controller="truncation" data-truncation-expanded-value="false" data-truncation-mode-value="vertical" data-truncation-inline-value="false">
+       <div data-truncation-target="truncate" class="line-clamp-3" style="overflow: hidden;">
+        <span>Short first paragraph that fits.</span>
+       </div>
+       <div data-truncation-target="expander">
+        <button type="button" data-show-dialog-id="my-dialog">Toggle</button>
+       </div>
+      </div>
+     `;
+
+      appendTemplate(serverVisibleTemplate);
+      await nextFrame();
+
+      const truncateEl = document.querySelector<HTMLElement>('[data-truncation-target="truncate"]')!;
+      const expander = document.querySelector<HTMLElement>('[data-truncation-target="expander"]')!;
+
+      // Content fits — no physical truncation
+      Object.defineProperty(truncateEl, 'scrollHeight', { configurable: true, value: 40 });
+      Object.defineProperty(truncateEl, 'clientHeight', { configurable: true, value: 60 });
+
+      const controller:any = Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector('[data-controller="truncation"]')!, 'truncation',
+      );
+      controller.resize();
+
+      // Expander must stay visible — server decided to show it because full content has more paragraphs
       expect(expander.hidden).toBe(false);
     });
   });
