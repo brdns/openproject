@@ -35,15 +35,16 @@ module Backlogs
     include OpPrimer::ComponentHelpers
     include CommonHelper
 
-    attr_reader :work_package, :project, :max_position, :current_user, :open_sprints_exist
+    attr_reader :work_package, :project, :max_position, :current_user, :open_sprints_exist, :other_buckets_exist
 
-    def initialize(work_package:, project:, max_position:, open_sprints_exist:, current_user: User.current)
+    def initialize(work_package:, project:, max_position:, open_sprints_exist:, other_buckets_exist:, current_user: User.current)
       super()
 
       @work_package = work_package
       @project = project
       @max_position = max_position
       @open_sprints_exist = open_sprints_exist
+      @other_buckets_exist = other_buckets_exist
       @current_user = current_user
     end
 
@@ -58,12 +59,20 @@ module Backlogs
         !(first_item? && last_item?)
     end
 
+    def show_move_to_inbox?
+      allowed_to_manage_sprint_items? && (work_package.sprint_id? || work_package.backlog_bucket_id?)
+    end
+
+    def show_move_to_backlog_bucket?
+      allowed_to_manage_sprint_items? && other_buckets_exist
+    end
+
     def show_move_to_sprint?
       allowed_to_manage_sprint_items? && open_sprints_exist
     end
 
     def show_move_submenu?
-      show_move_items? || show_move_to_sprint?
+      show_move_items? || show_move_to_sprint? || show_move_to_inbox? || show_move_to_backlog_bucket?
     end
 
     def allowed_to_manage_sprint_items?
