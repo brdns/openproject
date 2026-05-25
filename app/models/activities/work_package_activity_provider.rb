@@ -35,6 +35,7 @@ class Activities::WorkPackageActivityProvider < Activities::BaseActivityProvider
   def extend_event_query(query)
     query.join(types_table).on(activity_journals_table[:type_id].eq(types_table[:id]))
     query.join(statuses_table).on(activity_journals_table[:status_id].eq(statuses_table[:id]))
+    query.join(work_packages_table).on(journals_table[:journable_id].eq(work_packages_table[:id]))
   end
 
   def event_query_projection
@@ -42,7 +43,8 @@ class Activities::WorkPackageActivityProvider < Activities::BaseActivityProvider
       activity_journal_projection_statement(:subject, "subject"),
       activity_journal_projection_statement(:project_id, "project_id"),
       projection_statement(statuses_table, :is_closed, "status_closed"),
-      projection_statement(types_table, :name, "type_name")
+      projection_statement(types_table, :name, "type_name"),
+      projection_statement(work_packages_table, :identifier, "wp_identifier")
     ]
   end
 
@@ -63,15 +65,23 @@ class Activities::WorkPackageActivityProvider < Activities::BaseActivityProvider
   end
 
   def event_path(event)
-    url_helpers.work_package_path(event["journable_id"])
+    url_helpers.work_package_path(display_id_for(event))
   end
 
   def event_url(event)
-    url_helpers.work_package_url(event["journable_id"],
+    url_helpers.work_package_url(display_id_for(event),
                                  anchor: notes_anchor(event))
   end
 
   private
+
+  def display_id_for(event)
+    if Setting::WorkPackageIdentifier.semantic_mode_active?
+      event["wp_identifier"].presence || event["journable_id"]
+    else
+      event["journable_id"]
+    end
+  end
 
   def notes_anchor(event)
     version = event["version"].to_i
@@ -85,5 +95,9 @@ class Activities::WorkPackageActivityProvider < Activities::BaseActivityProvider
 
   def statuses_table
     @statuses_table = Status.arel_table
+  end
+
+  def work_packages_table
+    @work_packages_table ||= WorkPackage.arel_table
   end
 end

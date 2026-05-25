@@ -99,6 +99,47 @@ RSpec.describe Activities::WorkPackageActivityProvider do
       end
     end
 
+    context "when semantic work package IDs are active" do
+      let(:semantic_identifier) { "TST-1" }
+
+      before do
+        work_package.update_column(:identifier, semantic_identifier)
+        allow(Setting::WorkPackageIdentifier).to receive(:semantic_mode_active?).and_return(true)
+      end
+
+      let(:events) do
+        Activities::WorkPackageActivityProvider
+          .find_events(event_scope, user, Time.zone.yesterday.to_datetime, Time.zone.tomorrow.to_datetime, {})
+      end
+
+      it "event_path uses the semantic identifier" do
+        expect(events[0].event_path).to end_with("/work_packages/#{semantic_identifier}")
+      end
+
+      it "event_url uses the semantic identifier" do
+        expect(events[0].event_url).to include("/work_packages/#{semantic_identifier}")
+      end
+    end
+
+    context "when semantic work package IDs are inactive" do
+      before do
+        allow(Setting::WorkPackageIdentifier).to receive(:semantic_mode_active?).and_return(false)
+      end
+
+      let(:events) do
+        Activities::WorkPackageActivityProvider
+          .find_events(event_scope, user, Time.zone.yesterday.to_datetime, Time.zone.tomorrow.to_datetime, {})
+      end
+
+      it "event_path uses the numeric ID" do
+        expect(events[0].event_path).to end_with("/work_packages/#{work_package.id}")
+      end
+
+      it "event_url uses the numeric ID" do
+        expect(events[0].event_url).to include("/work_packages/#{work_package.id}")
+      end
+    end
+
     context "for a non admin user" do
       let(:project) { create(:project) }
       let(:child_project1) { create(:project, parent: project) }
