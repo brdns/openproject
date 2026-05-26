@@ -29,16 +29,20 @@
 #++
 
 module Wikis
-  module PageLinks
-    class RelationPageLinkCreateContract < ::ModelContract
+  module RelationPageLinks
+    class CreateContract < ::ModelContract
       attribute :author
       attribute :identifier
-      attribute :linkable
+      attribute :linkable_type
+      attribute :linkable_id
       attribute :provider
+      attribute :type
 
       validates :identifier, presence: true
-      validates :linkable, presence: true
+      validates :linkable_type, presence: true
+      validates :linkable_id, presence: true
       validates :provider, presence: true
+      validates :type, inclusion: { in: [RelationPageLink.name] }
 
       validate :provider_exists?
       validate :author_must_be_user

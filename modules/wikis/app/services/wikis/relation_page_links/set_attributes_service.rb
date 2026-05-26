@@ -29,7 +29,7 @@
 #++
 
 module Wikis
-  module PageLinks
+  module RelationPageLinks
     class SetAttributesService < ::BaseServices::SetAttributes
     end
   end
