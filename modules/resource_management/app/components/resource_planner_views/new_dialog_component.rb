@@ -28,24 +28,26 @@
 # See COPYRIGHT and LICENSE files for more details.
 #++
 
-class ResourceWorkPackageList < PersistedView
-  validate :query_must_be_work_package_query
+module ResourcePlannerViews
+  class NewDialogComponent < ApplicationComponent
+    include OpTurbo::Streamable
+    include OpPrimer::ComponentHelpers
 
-  # See `UserCard#build_default_query` for context. The work-package Query
-  # uses `new_default` so the standard defaults (status filter, sort, etc.)
-  # are applied — otherwise validation would fail on missing attributes.
-  # The `::` prefix disambiguates from `ActiveRecord::AttributeMethods::Query`
-  # which is in scope inside ActiveRecord models.
-  def build_default_query
-    ::Query.new_default(project:, user: principal)
-  end
+    DIALOG_ID = "new-resource-planner-view-dialog"
+    FORM_ID = "new-resource-planner-view-form"
+    FOOTER_ID = "new-resource-planner-view-footer"
 
-  private
+    def initialize(resource_planner:, project:)
+      super
 
-  def query_must_be_work_package_query
-    resolved = effective_query
-    return if resolved.nil? || resolved.is_a?(::Query)
+      @resource_planner = resource_planner
+      @project = project
+    end
 
-    errors.add(:query, I18n.t(:must_be_work_package_query))
+    private
+
+    def title
+      I18n.t("resource_management.new_view_dialog.title")
+    end
   end
 end

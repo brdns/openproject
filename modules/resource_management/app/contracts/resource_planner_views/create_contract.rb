@@ -28,24 +28,20 @@
 # See COPYRIGHT and LICENSE files for more details.
 #++
 
-class ResourceWorkPackageList < PersistedView
-  validate :query_must_be_work_package_query
+module ResourcePlannerViews
+  class CreateContract < BaseContract
+    attribute :parent
+    attribute :project
+    attribute :principal
 
-  # See `UserCard#build_default_query` for context. The work-package Query
-  # uses `new_default` so the standard defaults (status filter, sort, etc.)
-  # are applied — otherwise validation would fail on missing attributes.
-  # The `::` prefix disambiguates from `ActiveRecord::AttributeMethods::Query`
-  # which is in scope inside ActiveRecord models.
-  def build_default_query
-    ::Query.new_default(project:, user: principal)
-  end
+    validate :parent_must_be_resource_planner
 
-  private
+    private
 
-  def query_must_be_work_package_query
-    resolved = effective_query
-    return if resolved.nil? || resolved.is_a?(::Query)
+    def parent_must_be_resource_planner
+      return if model.parent.is_a?(ResourcePlanner)
 
-    errors.add(:query, I18n.t(:must_be_work_package_query))
+      errors.add :parent, :blank
+    end
   end
 end

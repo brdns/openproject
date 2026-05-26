@@ -81,6 +81,18 @@ en:
       resource_work_package_list:
         label: "Work packages list"
         caption: "Create a view based on work packages and see its details and allocation in a list"
+    new_view_dialog:
+      title: "Add View"
+    configure_view_dialog:
+      title: "Configure view"
+      filter_mode:
+        label: "Item selection"
+        automatic:
+          label: "Automatically filtered"
+          caption: "An automatically-generated list that displays items that meet criteria you define."
+        manual:
+          label: "Manually hand-picked"
+          caption: "A custom list of items you manually add and remove. Filtering is not possible."
     action:
       favorite: "Add to favorites"
       unfavorite: "Remove from favorites"

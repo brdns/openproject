@@ -29,6 +29,8 @@
 #++
 module ::ResourceManagement
   class ResourcePlannerViewsController < BaseController
+    include OpTurbo::ComponentStream
+
     menu_item :resource_management
 
     before_action :find_project_by_project_id
@@ -38,17 +40,77 @@ module ::ResourceManagement
 
     def show; end
 
-    def new; end
+    def new
+      if params[:view_class_name].present?
+        render_configure_step(build_view)
+      else
+        respond_with_dialog ResourcePlannerViews::NewDialogComponent.new(
+          resource_planner: @resource_planner,
+          project: @project
+        )
+      end
+    end
 
     def edit; end
 
-    def create; end
+    def create
+      view_class = allowed_view_class(params[:view_class_name])
+      return render_400(message: "Invalid view type") if view_class.nil?
+
+      call = ResourcePlannerViews::CreateService
+               .new(user: current_user, model: build_view(view_class:))
+               .call(create_params)
+
+      call.success? ? render_create_success(call.result) : render_configure_step(call.result, status: :unprocessable_entity)
+    end
 
     def update; end
 
     def destroy; end
 
     private
+
+    def render_configure_step(view, status: :ok)
+      update_dialog_title_via_turbo_stream(
+        ResourcePlannerViews::NewDialogComponent::DIALOG_ID,
+        new_title: I18n.t("resource_management.configure_view_dialog.title")
+      )
+      replace_via_turbo_stream(
+        component: ResourcePlannerViews::ConfigureStep::FormComponent.new(
+          view:,
+          url: project_resource_planner_views_path(@project, @resource_planner),
+          hidden_fields: { view_class_name: view.class.name },
+          filter_query: view.build_default_query
+        ),
+        status:
+      )
+      replace_via_turbo_stream(component: ResourcePlannerViews::ConfigureStep::FooterComponent.new)
+      respond_with_turbo_streams
+    end
+
+    def build_view(view_class: allowed_view_class(params[:view_class_name]))
+      view_class.new(parent: @resource_planner, project: @project, principal: current_user)
+    end
+
+    def view_params
+      params.expect(view: %i[name]).to_h
+    end
+
+    def create_params
+      view_params.merge(parent: @resource_planner, project: @project, principal: current_user)
+    end
+
+    def render_create_success(view)
+      render turbo_stream: turbo_stream.redirect_to(
+        project_resource_planner_view_path(@project, @resource_planner, view)
+      )
+    end
+
+    def allowed_view_class(name)
+      return nil unless ResourcePlanner.allowed_children.include?(name.to_s)
+
+      name.to_s.constantize
+    end
 
     def find_resource_planner
       @resource_planner = ResourcePlanner

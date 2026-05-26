@@ -56,7 +56,10 @@ module ResourcePlanners
     end
 
     def add_create_tab(component)
-      component.with_tab(href: new_project_resource_planner_view_path(resource_planner.project, resource_planner)) do
+      component.with_tab(
+        href: new_project_resource_planner_view_path(resource_planner.project, resource_planner),
+        data: { controller: "async-dialog" }
+      ) do
         render(Primer::Beta::Octicon.new(icon: :plus, size: :medium))
       end
     end

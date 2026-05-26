@@ -28,24 +28,36 @@
 # See COPYRIGHT and LICENSE files for more details.
 #++
 
-class ResourceWorkPackageList < PersistedView
-  validate :query_must_be_work_package_query
+module ResourcePlannerViews
+  module TypeStep
+    class FooterComponent < ApplicationComponent
+      include OpTurbo::Streamable
+      include OpPrimer::ComponentHelpers
 
-  # See `UserCard#build_default_query` for context. The work-package Query
-  # uses `new_default` so the standard defaults (status filter, sort, etc.)
-  # are applied — otherwise validation would fail on missing attributes.
-  # The `::` prefix disambiguates from `ActiveRecord::AttributeMethods::Query`
-  # which is in scope inside ActiveRecord models.
-  def build_default_query
-    ::Query.new_default(project:, user: principal)
-  end
+      def wrapper_key
+        ResourcePlannerViews::NewDialogComponent::FOOTER_ID
+      end
 
-  private
+      def call
+        component_wrapper do
+          component_collection do |buttons|
+            buttons.with_component(
+              Primer::Beta::Button.new(
+                data: { "close-dialog-id": ResourcePlannerViews::NewDialogComponent::DIALOG_ID },
+                mr: 1
+              )
+            ) { I18n.t(:button_cancel) }
 
-  def query_must_be_work_package_query
-    resolved = effective_query
-    return if resolved.nil? || resolved.is_a?(::Query)
-
-    errors.add(:query, I18n.t(:must_be_work_package_query))
+            buttons.with_component(
+              Primer::Beta::Button.new(
+                scheme: :primary,
+                form: ResourcePlannerViews::NewDialogComponent::FORM_ID,
+                type: :submit
+              )
+            ) { I18n.t("button_next") }
+          end
+        end
+      end
+    end
   end
 end
