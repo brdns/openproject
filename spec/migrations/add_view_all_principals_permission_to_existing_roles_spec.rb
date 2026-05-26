@@ -32,93 +32,40 @@ require "spec_helper"
 require Rails.root.join("db/migrate/20250929070310_add_view_all_principals_permission_to_existing_roles")
 
 RSpec.describe AddViewAllPrincipalsPermissionToExistingRoles, type: :model do
-  let(:admin_user) { create(:admin) }
-  let(:regular_user) { create(:user) }
   let(:project) { create(:project) }
 
-  describe "up migration" do
-    context "when global roles have manage_user permission" do
+  def migrate_up
+    ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
+  end
+
+  def migrate_down
+    ActiveRecord::Migration.suppress_messages { described_class.migrate(:down) }
+  end
+
+  describe "up" do
+    context "when a global role has manage_user permission" do
       let(:global_role) { create(:global_role, name: "Staff Manager") }
 
-      before do
-        global_role.add_permission!(:manage_user)
-      end
+      before { global_role.add_permission!(:manage_user) }
 
-      it "adds view_all_users permission to global roles with manage_user" do
+      it "adds view_all_principals to it" do
         expect(global_role.has_permission?(:view_all_principals)).to be false
 
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
+        migrate_up
 
-        global_role.reload
-        expect(global_role.has_permission?(:view_all_principals)).to be true
+        expect(global_role.reload.has_permission?(:view_all_principals)).to be true
+      end
+
+      it "does not duplicate the permission when run twice" do
+        migrate_up
+        migrate_up
+
+        count = RolePermission.where(role_id: global_role.id, permission: "view_all_principals").count
+        expect(count).to eq(1)
       end
     end
 
-    context "when project roles have manage_members permission" do
-      let(:project_role) { create(:project_role, name: "Project Manager") }
-      let(:user_with_manage_members) { create(:user) }
-
-      before do
-        project_role.add_permission!(:manage_members)
-        create(:member, project:, principal: user_with_manage_members, roles: [project_role])
-      end
-
-      it "creates a global role and assigns it to users with manage_members" do
-        expect(GlobalRole.find_by(name: "View all users (migration)")).to be_nil
-        expect(user_with_manage_members.members.where(project: nil)).to be_empty
-
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
-
-        migration_role = GlobalRole.find_by(name: "View all users (migration)")
-        expect(migration_role).to be_present
-        expect(migration_role.has_permission?(:view_all_principals)).to be true
-
-        user_with_manage_members.reload
-        global_membership = user_with_manage_members.members.find_by(project: nil)
-        expect(global_membership.roles).to include(migration_role)
-      end
-
-      it "does not duplicate assignments for users already having the global role" do
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
-
-        # Run migration again
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
-
-        migration_role = GlobalRole.find_by(name: "View all users (migration)")
-        user_with_manage_members.reload
-
-        # Should only have one assignment
-        expect(user_with_manage_members.members.where(project: nil).count).to eq(1)
-        global_membership = user_with_manage_members.members.find_by(project: nil)
-        expect(global_membership.roles).to include(migration_role)
-      end
-    end
-
-    context "when users have manage_members in multiple projects" do
-      let(:project_role) { create(:project_role, name: "Project Manager") }
-      let(:user_with_multiple_projects) { create(:user) }
-      let(:project2) { create(:project) }
-
-      before do
-        project_role.add_permission!(:manage_members)
-        create(:member, project:, principal: user_with_multiple_projects, roles: [project_role])
-        create(:member, project: project2, principal: user_with_multiple_projects, roles: [project_role])
-      end
-
-      it "assigns the global role only once per user" do
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
-
-        migration_role = GlobalRole.find_by(name: "View all users (migration)")
-        user_with_multiple_projects.reload
-
-        # Should have one global role assignment
-        expect(user_with_multiple_projects.members.where(project: nil).count).to eq(1)
-        global_membership = user_with_multiple_projects.members.find_by(project: nil)
-        expect(global_membership.roles).to include(migration_role)
-      end
-    end
-
-    context "when roles already have view_all_users permission" do
+    context "when a global role already has both manage_user and view_all_principals" do
       let(:global_role) { create(:global_role, name: "Staff Manager") }
 
       before do
@@ -126,103 +73,162 @@ RSpec.describe AddViewAllPrincipalsPermissionToExistingRoles, type: :model do
         global_role.add_permission!(:view_all_principals)
       end
 
-      it "does not duplicate the permission" do
-        initial_permissions = global_role.permissions.dup
+      it "does not add a duplicate permission" do
+        initial_count = RolePermission.where(role_id: global_role.id, permission: "view_all_principals").count
 
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
+        migrate_up
 
-        global_role.reload
-        expect(global_role.permissions).to eq(initial_permissions)
+        expect(RolePermission.where(role_id: global_role.id, permission: "view_all_principals").count)
+          .to eq(initial_count)
       end
     end
-  end
 
-  describe "down migration" do
-    let(:migration_role) { create(:global_role, name: "View all users (migration)") }
-    let(:user_with_global_role) { create(:user) }
-
-    before do
-      migration_role.add_permission!(:view_all_principals)
-      create(:member, project: nil, principal: user_with_global_role, roles: [migration_role])
-    end
-
-    it "removes the migration global role and its assignments" do
-      expect(GlobalRole.find_by(name: "View all users (migration)")).to be_present
-      expect(user_with_global_role.members.where(project: nil)).not_to be_empty
-
-      ActiveRecord::Migration.suppress_messages { described_class.migrate(:down) }
-
-      expect(GlobalRole.find_by(name: "View all users (migration)")).to be_nil
-      user_with_global_role.reload
-      expect(user_with_global_role.members.where(project: nil)).to be_empty
-    end
-
-    it "removes view_all_users permission from global roles that had manage_user" do
-      global_role = create(:global_role, name: "Staff Manager")
-      global_role.add_permission!(:manage_user)
-      global_role.add_permission!(:view_all_principals)
-
-      ActiveRecord::Migration.suppress_messages { described_class.migrate(:down) }
-
-      global_role.reload
-      expect(global_role.has_permission?(:view_all_principals)).to be false
-      expect(global_role.has_permission?(:manage_user)).to be true
-    end
-
-    context "when migration role does not exist" do
-      before do
-        migration_role.destroy
-      end
-
-      it "does not raise an error" do
-        expect { ActiveRecord::Migration.suppress_messages { described_class.migrate(:down) } }
-          .not_to raise_error
-      end
-    end
-  end
-
-  describe "edge cases" do
-    context "when user has both manage_user and manage_members permissions" do
-      let(:global_role) { create(:global_role, name: "Staff Manager") }
+    context "when a user has manage_members via a project role" do
       let(:project_role) { create(:project_role, name: "Project Manager") }
-      let(:user_with_both) { create(:user) }
+      let(:user) { create(:user) }
+
+      before do
+        project_role.add_permission!(:manage_members)
+        create(:member, project:, principal: user, roles: [project_role])
+      end
+
+      it "creates the migration global role with view_all_principals" do
+        expect(GlobalRole.find_by(name: "View all users (migration)")).to be_nil
+
+        migrate_up
+
+        migration_role = GlobalRole.find_by(name: "View all users (migration)")
+        expect(migration_role).to be_present
+        expect(migration_role.has_permission?(:view_all_principals)).to be true
+      end
+
+      it "assigns the migration global role to the user" do
+        migrate_up
+
+        migration_role = GlobalRole.find_by(name: "View all users (migration)")
+        global_membership = user.members.find_by(project: nil)
+        expect(global_membership).to be_present
+        expect(global_membership.roles).to include(migration_role)
+      end
+
+      it "is idempotent" do
+        migrate_up
+        migrate_up
+
+        expect(user.members.where(project: nil).count).to eq(1)
+        expect(MemberRole.joins(:member)
+                         .where(members: { user_id: user.id, project_id: nil })
+                         .where(role: GlobalRole.find_by(name: "View all users (migration)"))
+                         .where(inherited_from: nil)
+                         .count).to eq(1)
+      end
+    end
+
+    context "when a user has manage_members in multiple projects" do
+      let(:project_role) { create(:project_role, name: "Project Manager") }
+      let(:user) { create(:user) }
+      let(:project2) { create(:project) }
+
+      before do
+        project_role.add_permission!(:manage_members)
+        create(:member, project:, principal: user, roles: [project_role])
+        create(:member, project: project2, principal: user, roles: [project_role])
+      end
+
+      it "assigns the global role only once" do
+        migrate_up
+
+        expect(user.members.where(project: nil).count).to eq(1)
+      end
+    end
+
+    context "when the user is a PlaceholderUser" do
+      let(:project_role) { create(:project_role, name: "Project Manager") }
+      let(:placeholder) { create(:placeholder_user) }
+
+      before do
+        project_role.add_permission!(:manage_members)
+        create(:member, project:, principal: placeholder, roles: [project_role])
+      end
+
+      it "does not assign the global role to the placeholder user" do
+        migrate_up
+
+        expect(Member.where(user_id: placeholder.id, project_id: nil)).to be_empty
+      end
+    end
+
+    context "when a user already has a global membership for another role" do
+      let(:project_role) { create(:project_role, name: "Project Manager") }
+      let(:other_global_role) { create(:global_role, name: "Other Global Role") }
+      let(:user) { create(:user) }
+
+      before do
+        project_role.add_permission!(:manage_members)
+        create(:member, project:, principal: user, roles: [project_role])
+        create(:member, project: nil, principal: user, roles: [other_global_role])
+      end
+
+      it "reuses the existing global membership instead of creating a new one" do
+        migrate_up
+
+        expect(user.members.where(project: nil).count).to eq(1)
+        migration_role = GlobalRole.find_by(name: "View all users (migration)")
+        expect(user.members.find_by(project: nil).roles).to include(migration_role, other_global_role)
+      end
+    end
+  end
+
+  describe "down" do
+    context "when the migration role exists with assignments" do
+      let(:migration_role) { create(:global_role, name: "View all users (migration)") }
+      let(:user) { create(:user) }
+
+      before do
+        migration_role.add_permission!(:view_all_principals)
+        create(:member, project: nil, principal: user, roles: [migration_role])
+      end
+
+      it "removes the migration role and its global memberships" do
+        expect(GlobalRole.find_by(name: "View all users (migration)")).to be_present
+
+        migrate_down
+
+        expect(GlobalRole.find_by(name: "View all users (migration)")).to be_nil
+        expect(user.members.reload.where(project: nil)).to be_empty
+      end
+
+      it "preserves other global memberships the user has" do
+        other_global_role = create(:global_role, name: "Other Role")
+        user.members.find_by(project: nil).roles << other_global_role
+
+        migrate_down
+
+        expect(user.members.reload.where(project: nil)).not_to be_empty
+        expect(user.members.find_by(project: nil).roles).to include(other_global_role)
+      end
+    end
+
+    context "when a global role has view_all_principals" do
+      let(:global_role) { create(:global_role, name: "Staff Manager") }
 
       before do
         global_role.add_permission!(:manage_user)
-        project_role.add_permission!(:manage_members)
-
-        create(:member, project: nil, principal: user_with_both, roles: [global_role])
-        create(:member, project:, principal: user_with_both, roles: [project_role])
+        global_role.add_permission!(:view_all_principals)
       end
 
-      it "assigns the migration global role even if user already has view_all_users via global role" do
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
+      it "removes view_all_principals but leaves manage_user" do
+        migrate_down
 
-        migration_role = GlobalRole.find_by(name: "View all users (migration)")
-        user_with_both.reload
-
-        # Should have both the original global role and the migration role
-        global_membership = user_with_both.members.find_by(project: nil)
-        expect(global_membership.roles).to include(global_role)
-        expect(global_membership.roles).to include(migration_role)
+        global_role.reload
+        expect(global_role.has_permission?(:view_all_principals)).to be false
+        expect(global_role.has_permission?(:manage_user)).to be true
       end
     end
 
-    context "when project role has no permissions" do
-      let(:empty_project_role) { create(:project_role, name: "Empty Role") }
-      let(:user_with_empty_role) { create(:user) }
-
-      before do
-        create(:member, project:, principal: user_with_empty_role, roles: [empty_project_role])
-      end
-
-      it "does not assign the migration global role" do
-        ActiveRecord::Migration.suppress_messages { described_class.migrate(:up) }
-
-        migration_role = GlobalRole.find_by(name: "View all users (migration)")
-        user_with_empty_role.reload
-
-        expect(user_with_empty_role.members.where(project: nil)).not_to include(migration_role) if migration_role
+    context "when the migration role does not exist" do
+      it "does not raise an error" do
+        expect { migrate_down }.not_to raise_error
       end
     end
   end
