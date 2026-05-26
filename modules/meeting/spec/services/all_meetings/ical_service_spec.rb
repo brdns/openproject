@@ -158,6 +158,25 @@ RSpec.describe AllMeetings::ICalService, type: :model do
         expect(uids).to contain_exactly(meeting.uid, past_meeting.uid)
       end
     end
+
+    context "without historic meetings but with a closed past meeting" do
+      let(:include_historic) { false }
+
+      let!(:closed_past_meeting) do
+        create(:meeting,
+               author: user,
+               project:,
+               title: "Closed past meeting",
+               state: :closed,
+               participants: [MeetingParticipant.new(user:)],
+               start_time: relevant_time - 1.week,
+               duration: 1.0)
+      end
+
+      it "includes the closed past meeting even though it is in the past" do
+        expect(ical.events.map(&:uid)).to include(closed_past_meeting.uid)
+      end
+    end
   end
 
   context "with recurring meetings" do
