@@ -63,7 +63,7 @@ RSpec.describe "Move to backlog", :js do
 
         wait_for_network_idle
 
-        planning_page.expect_story_not_in_sprint(work_package, sprint)
+        planning_page.expect_work_package_not_in_sprint(work_package, sprint)
         planning_page.expect_inbox_item(work_package)
       end
     end
@@ -98,7 +98,7 @@ RSpec.describe "Move to backlog", :js do
 
         wait_for_network_idle
 
-        planning_page.expect_story_not_in_sprint(work_package, sprint)
+        planning_page.expect_work_package_not_in_sprint(work_package, sprint)
         planning_page.expect_work_package_in_backlog_bucket(work_package, bucket_b)
       end
     end
@@ -153,7 +153,7 @@ RSpec.describe "Move to backlog", :js do
 
       it "opens the dialog excluding the current sprint, and moves to another sprint" do
         planning_page.visit!
-        planning_page.expect_story_in_sprint(work_package, sprint)
+        planning_page.expect_work_package_in_sprint(work_package, sprint)
 
         planning_page.click_in_work_package_move_menu(work_package, "Move to sprint")
 
@@ -167,8 +167,8 @@ RSpec.describe "Move to backlog", :js do
 
         wait_for_network_idle
 
-        planning_page.expect_story_not_in_sprint(work_package, sprint)
-        planning_page.expect_story_in_sprint(work_package, second_sprint)
+        planning_page.expect_work_package_not_in_sprint(work_package, sprint)
+        planning_page.expect_work_package_in_sprint(work_package, second_sprint)
       end
     end
 
@@ -187,7 +187,7 @@ RSpec.describe "Move to backlog", :js do
         wait_for_network_idle
 
         planning_page.expect_no_inbox_item(work_package)
-        planning_page.expect_story_in_sprint(work_package, sprint)
+        planning_page.expect_work_package_in_sprint(work_package, sprint)
       end
     end
 
@@ -206,7 +206,7 @@ RSpec.describe "Move to backlog", :js do
         wait_for_network_idle
 
         planning_page.expect_no_work_package_in_backlog_bucket(work_package, bucket_a)
-        planning_page.expect_story_in_sprint(work_package, sprint)
+        planning_page.expect_work_package_in_sprint(work_package, sprint)
       end
     end
   end
