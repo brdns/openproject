@@ -55,7 +55,14 @@ module ProjectIdentifiers
       classic = generator.restore_identifier(project) || generator.suggest_identifier(project.name)
       # Suppress notifications: this is a background system operation, not a user edit.
       Journal::NotificationConfiguration.with(false) do
-        project.update!(identifier: classic)
+        begin
+          project.update!(identifier: classic)
+        rescue ActiveRecord::RecordInvalid => e
+          Rails.logger.warn "#{self.class}: identifier '#{classic}' taken for project #{project.id}, " \
+                            "falling back. (#{e.message})"
+          fallback = ProjectIdentifiers::ClassicIdentifierSuggestionGenerator.new.suggest_identifier(project.name)
+          project.update!(identifier: fallback)
+        end
       end
     end
   end
