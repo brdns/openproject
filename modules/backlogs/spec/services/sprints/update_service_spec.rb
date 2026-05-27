@@ -39,12 +39,10 @@ RSpec.describe Sprints::UpdateService, type: :model do
   end
   let(:project_permissions) { %i[view_sprints create_sprints] }
   let(:source_project_permissions) { %i[view_sprints] }
-  let(:attributes) { {} }
-  let(:goal) { "Ship dashboard" }
-  let(:goal_project) { project }
+  let(:attributes) { { goals_attributes: [{ project_id: project.id, text: "Ship dashboard" }] } }
 
   subject(:service_call) do
-    described_class.new(user:, model: sprint).call(attributes:, goal:, goal_project:)
+    described_class.new(user:, model: sprint).call(attributes:)
   end
 
   it "persists the goal for the supplied goal project" do
@@ -54,18 +52,19 @@ RSpec.describe Sprints::UpdateService, type: :model do
   end
 
   context "when a goal already exists" do
-    before do
+    let!(:goal) do
       create(:sprint_goal, sprint:, project:, text: "Old goal")
     end
+    let(:attributes) { { goals_attributes: [{ id: goal.id, project_id: project.id, text: "Ship dashboard" }] } }
 
     it "updates the existing goal" do
       expect { service_call }.not_to change(SprintGoal, :count)
 
-      expect(sprint.goal_text_for(project)).to eq("Ship dashboard")
+      expect(sprint.reload.goal_text_for(project)).to eq("Ship dashboard")
     end
 
     context "with a blank goal" do
-      let(:goal) { "" }
+      let(:attributes) { { goals_attributes: [{ id: goal.id, text: "", _destroy: "1" }] } }
 
       it "removes the existing goal" do
         expect { service_call }.to change(SprintGoal, :count).by(-1)
@@ -80,35 +79,63 @@ RSpec.describe Sprints::UpdateService, type: :model do
 
     it "does not persist the goal" do
       expect { service_call }.not_to change(SprintGoal, :count)
+
+      expect(service_call).not_to be_success
     end
   end
 
-  context "when goal persistence hits the unique index" do
+  context "when a duplicate goal would be created" do
     before do
-      allow(SprintGoal)
-        .to receive(:find_or_initialize_by)
-        .and_raise(ActiveRecord::RecordNotUnique)
+      create(:sprint_goal, sprint:, project:, text: "Old goal")
     end
 
-    it "returns a failed service result instead of raising" do
-      expect { service_call }.not_to raise_error
+    it "returns a failed service result" do
+      expect { service_call }.not_to change(SprintGoal, :count)
 
       expect(service_call).not_to be_success
-      expect(service_call.errors.symbols_for(:project_id)).to include(:project_already_has_goal)
+      expect(service_call.errors).not_to be_empty
     end
   end
 
   context "with sprint attributes" do
     let(:attributes) { { name: "Renamed" } }
-    let(:goal) { nil }
     let(:project_permissions) { %i[view_sprints] }
     let(:source_project_permissions) { %i[view_sprints create_sprints] }
-    let(:goal_project) { source_project }
 
     it "updates the sprint through the regular update contract" do
       expect(service_call).to be_success
 
       expect(sprint.reload.name).to eq("Renamed")
+    end
+  end
+
+  context "with sprint attributes and no source project edit permission" do
+    let(:attributes) { { name: "Renamed" } }
+    let(:project_permissions) { %i[view_sprints create_sprints] }
+    let(:source_project_permissions) { %i[view_sprints] }
+
+    it "does not update the sprint" do
+      expect(service_call).not_to be_success
+
+      expect(sprint.reload.name).to eq("Sprint 1")
+    end
+  end
+
+  context "with sprint attributes and goal attributes" do
+    let(:attributes) do
+      {
+        name: "Renamed",
+        goals_attributes: [{ project_id: project.id, text: "Ship dashboard" }]
+      }
+    end
+    let(:project_permissions) { %i[view_sprints create_sprints] }
+    let(:source_project_permissions) { %i[view_sprints create_sprints] }
+
+    it "updates both in one request" do
+      expect(service_call).to be_success
+
+      expect(sprint.reload.name).to eq("Renamed")
+      expect(sprint.goal_text_for(project)).to eq("Ship dashboard")
     end
   end
 end
