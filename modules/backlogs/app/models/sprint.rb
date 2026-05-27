@@ -37,6 +37,13 @@ class Sprint < ApplicationRecord
            class_name: "SprintGoal",
            inverse_of: :sprint,
            dependent: :delete_all
+  accepts_nested_attributes_for :goals,
+                                allow_destroy: true,
+                                limit: 1,
+                                reject_if: ->(attributes) {
+                                  attributes = attributes.with_indifferent_access
+                                  attributes[:id].blank? && attributes[:text].blank?
+                                }
   has_many :task_boards,
            as: :linked,
            class_name: "Boards::Grid",
