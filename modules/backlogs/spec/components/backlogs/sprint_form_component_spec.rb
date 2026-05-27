@@ -64,6 +64,10 @@ RSpec.describe Backlogs::SprintFormComponent, type: :component do
         expect(rendered_component).to have_field(Sprint.human_attribute_name(:goal))
       end
 
+      it "renders the goal text field under the goal command param" do
+        expect(rendered_component).to have_field("sprint[goal][text]")
+      end
+
       it "does not render the goal section separator" do
         expect(rendered_component).to have_no_css(".border-top.color-border-muted")
       end
@@ -84,6 +88,17 @@ RSpec.describe Backlogs::SprintFormComponent, type: :component do
 
       it "renders the goal value" do
         expect(rendered_component).to have_field(Sprint.human_attribute_name(:goal), with: "Ship dashboard")
+      end
+
+      it "renders the goal id field under the goal command param" do
+        goal = SprintGoal.find_by!(sprint:, project:)
+
+        expect(rendered_component).to have_field(
+          "sprint[goal][id]",
+          type: :hidden,
+          with: goal.id.to_s,
+          visible: :hidden
+        )
       end
     end
   end

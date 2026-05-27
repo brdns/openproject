@@ -76,6 +76,10 @@ module Backlogs
       end
     end
 
+    def goal_form_model
+      Backlogs::Sprints::GoalFormModel.for(sprint:, project:)
+    end
+
     private
 
     def http_verb

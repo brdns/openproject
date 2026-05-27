@@ -36,17 +36,22 @@ RSpec.describe Backlogs::Sprints::GoalForm, type: :forms do
   let(:project) { create(:project) }
   let(:sprint) { create(:sprint, project:) }
   let(:disabled) { false }
+  let(:shared_sprint) { false }
+  let(:goal_form_model) { Backlogs::Sprints::GoalFormModel.for(sprint:, project:) }
   let(:form_arguments) { { url: "/foo", model: sprint, scope: :sprint } }
 
   def render_form
     render_in_view_context(
       described_class,
       form_arguments,
-      project,
+      goal_form_model,
+      shared_sprint,
       disabled
-    ) do |described_class, form_arguments, project, disabled|
+    ) do |described_class, form_arguments, goal_form_model, shared_sprint, disabled|
       primer_form_with(**form_arguments) do |f|
-        render(described_class.new(f, project:, disabled:))
+        f.fields_for(:goal, goal_form_model) do |goal_fields|
+          render(described_class.new(goal_fields, shared_sprint:, disabled:))
+        end
       end
     end
   end
@@ -60,19 +65,35 @@ RSpec.describe Backlogs::Sprints::GoalForm, type: :forms do
     expect(rendered_form).to have_field(Sprint.human_attribute_name(:goal), disabled: false)
   end
 
+  it "renders the goal text field under the goal command param" do
+    expect(rendered_form).to have_field("sprint[goal][text]")
+  end
+
+  it "does not render a hidden goal id field" do
+    expect(rendered_form).to have_no_field("sprint[goal][id]", type: :hidden, visible: :hidden)
+  end
+
   context "when a goal exists for the project" do
-    before do
-      create(:sprint_goal, sprint:, project:, text: "Ship dashboard")
-    end
+    let!(:goal) { create(:sprint_goal, sprint:, project:, text: "Ship dashboard") }
 
     it "renders the goal value" do
       expect(rendered_form).to have_field(Sprint.human_attribute_name(:goal), with: "Ship dashboard")
+    end
+
+    it "renders a hidden goal id field" do
+      expect(rendered_form).to have_field(
+        "sprint[goal][id]",
+        type: :hidden,
+        with: goal.id.to_s,
+        visible: :hidden
+      )
     end
   end
 
   context "when the sprint is shared from another project" do
     let(:source_project) { create(:project) }
     let(:sprint) { create(:sprint, project: source_project) }
+    let(:shared_sprint) { true }
 
     it "renders the project-specific label" do
       label = "#{Sprint.human_attribute_name(:goal)} #{I18n.t('backlogs.sprint_form.goal_for_this_project_suffix')}"

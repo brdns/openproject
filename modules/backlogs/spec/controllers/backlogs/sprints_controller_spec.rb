@@ -120,6 +120,52 @@ RSpec.describe Backlogs::SprintsController do
         end
       end
 
+      context "with a sprint goal" do
+        let(:params) do
+          {
+            project_id: project.id,
+            sprint: {
+              name: "My Sprint",
+              start_date: "2025-10-05",
+              finish_date: "2025-10-15",
+              goal: { text: "Ship MVP" }
+            }
+          }
+        end
+
+        it "creates the goal for the route project" do
+          expect { post :create, format: :turbo_stream, params: params }
+            .to change(SprintGoal, :count).by(1)
+
+          sprint = Sprint.find_by!(name: "My Sprint")
+          expect(sprint.goal_text_for(project)).to eq("Ship MVP")
+        end
+
+        context "with a submitted goal project id" do
+          let(:other_project) { create(:project) }
+
+          let(:params) do
+            {
+              project_id: project.id,
+              sprint: {
+                name: "My Sprint",
+                start_date: "2025-10-05",
+                finish_date: "2025-10-15",
+                goal: { text: "Ship MVP", project_id: other_project.id }
+              }
+            }
+          end
+
+          it "ignores the submitted project id" do
+            post :create, format: :turbo_stream, params: params
+
+            sprint = Sprint.find_by!(name: "My Sprint")
+            expect(sprint.goal_text_for(project)).to eq("Ship MVP")
+            expect(sprint.goal_text_for(other_project)).to be_nil
+          end
+        end
+      end
+
       context "without the 'create_sprints' permission" do
         let(:permissions) { all_permissions - [:create_sprints] }
 
@@ -154,6 +200,59 @@ RSpec.describe Backlogs::SprintsController do
         expect(response.body).to include("Successful update.")
         expect(controller.controller_path).to eq("backlogs/sprints")
         expect(controller.action_name).to eq("update")
+      end
+
+      context "with a sprint goal" do
+        let(:params) do
+          {
+            project_id: project.id,
+            sprint_id: sprint.id,
+            sprint: { goal: { text: "Ship MVP" } }
+          }
+        end
+
+        it "updates the goal for the route project" do
+          expect { put :update, format: :turbo_stream, params: params }
+            .to change(SprintGoal, :count).by(1)
+
+          expect(sprint.reload.goal_text_for(project)).to eq("Ship MVP")
+        end
+
+        context "with a submitted goal project id" do
+          let(:other_project) { create(:project) }
+          let(:params) do
+            {
+              project_id: project.id,
+              sprint_id: sprint.id,
+              sprint: { goal: { text: "Ship MVP", project_id: other_project.id } }
+            }
+          end
+
+          it "ignores the submitted project id" do
+            put :update, format: :turbo_stream, params: params
+
+            expect(sprint.reload.goal_text_for(project)).to eq("Ship MVP")
+            expect(sprint.goal_text_for(other_project)).to be_nil
+          end
+        end
+
+        context "when clearing an existing goal" do
+          let!(:goal) { create(:sprint_goal, sprint:, project:, text: "Old goal") }
+          let(:params) do
+            {
+              project_id: project.id,
+              sprint_id: sprint.id,
+              sprint: { goal: { id: goal.id, text: "" } }
+            }
+          end
+
+          it "destroys the existing goal" do
+            expect { put :update, format: :turbo_stream, params: params }
+              .to change(SprintGoal, :count).by(-1)
+
+            expect(sprint.reload.goal_text_for(project)).to be_nil
+          end
+        end
       end
 
       context "without the 'create_sprints' permission" do
@@ -598,7 +697,7 @@ RSpec.describe Backlogs::SprintsController do
           it "allows the request", :aggregate_failures do
             put :update,
                 format: :turbo_stream,
-                params: { project_id: project.id, sprint_id: sprint.id, sprint: { goal: "Ship MVP" } }
+                params: { project_id: project.id, sprint_id: sprint.id, sprint: { goal: { text: "Ship MVP" } } }
 
             expect(response).to be_successful
           end

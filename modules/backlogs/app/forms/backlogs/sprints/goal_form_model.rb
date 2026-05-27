@@ -1,0 +1,54 @@
+# frozen_string_literal: true
+
+#-- copyright
+# OpenProject is an open source project management software.
+# Copyright (C) the OpenProject GmbH
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License version 3.
+#
+# OpenProject is a fork of ChiliProject, which is a fork of Redmine. The copyright follows:
+# Copyright (C) 2006-2013 Jean-Philippe Lang
+# Copyright (C) 2010-2013 the ChiliProject Team
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# See COPYRIGHT and LICENSE files for more details.
+#++
+
+module Backlogs
+  module Sprints
+    class GoalFormModel
+      include ActiveModel::Model
+      include ActiveModel::Attributes
+
+      attribute :id, :integer
+      attribute :project_id, :integer
+      attribute :text, :string
+
+      def self.for(sprint:, project:)
+        goal = sprint.goal_for(project)
+
+        new(
+          id: goal&.id,
+          project_id: project.id,
+          text: goal&.text
+        )
+      end
+
+      def self.model_name
+        ActiveModel::Name.new(self, nil, "Goal")
+      end
+
+      def to_nested_attributes
+        attributes = { project_id:, text: }
+        attributes[:id] = id if id.present?
+        attributes[:_destroy] = "1" if id.present? && text.blank?
+        attributes
+      end
+    end
+  end
+end

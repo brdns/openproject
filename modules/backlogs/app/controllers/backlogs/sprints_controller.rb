@@ -79,7 +79,7 @@ module Backlogs
     def create # rubocop:disable Metrics/AbcSize
       call = ::Sprints::CreateService
                .new(user: current_user)
-               .call(attributes: converted_sprint_params, goal: goal_param)
+               .call(attributes: converted_sprint_params)
 
       if call.success?
         flash[:notice] = I18n.t(:notice_successful_create)
@@ -93,7 +93,7 @@ module Backlogs
     def update
       call = ::Sprints::UpdateService
                .new(user: current_user, model: @sprint)
-               .call(attributes: sprint_update_params, goal: goal_param, goal_project: @project)
+               .call(attributes: sprint_update_params)
 
       if call.success?
         render_success_flash_message_via_turbo_stream(message: I18n.t(:notice_successful_update))
@@ -187,21 +187,45 @@ module Backlogs
     end
 
     def sprint_params
-      params.permit(sprint: %i[name start_date finish_date goal])
+      params.permit(sprint: [
+                      :name,
+                      :start_date,
+                      :finish_date,
+                      { goal: %i[id text] }
+                    ])
     end
 
-    def goal_param
+    def goal_params
       sprint_params.dig(:sprint, :goal)
     end
 
     def sprint_update_params
-      sprint_params[:sprint].except(:goal)
+      add_goal_attributes(sprint_attributes)
     end
 
     def converted_sprint_params
-      converted_params = sprint_params[:sprint].to_h.except(:goal)
+      converted_params = sprint_attributes
       converted_params[:project] = @project unless @sprint&.persisted?
-      converted_params
+      add_goal_attributes(converted_params)
+    end
+
+    def sprint_attributes
+      sprint_params[:sprint].to_h.symbolize_keys.except(:goal)
+    end
+
+    def goal_nested_attributes
+      return unless goal_params
+
+      Backlogs::Sprints::GoalFormModel
+        .new(goal_params.to_h.symbolize_keys.merge(project_id: @project.id))
+        .to_nested_attributes
+    end
+
+    def add_goal_attributes(attributes)
+      nested_attributes = goal_nested_attributes
+      return attributes unless nested_attributes
+
+      attributes.merge(goals_attributes: [nested_attributes])
     end
 
     def start_sprint

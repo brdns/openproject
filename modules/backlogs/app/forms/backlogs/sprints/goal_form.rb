@@ -31,19 +31,22 @@
 module Backlogs
   module Sprints
     class GoalForm < ApplicationForm
-      attr_reader :project, :disabled
+      attr_reader :disabled, :shared_sprint
 
-      def initialize(project:, disabled: false)
-        @project = project
+      alias shared_sprint? shared_sprint
+
+      def initialize(disabled: false, shared_sprint: false)
         @disabled = disabled
+        @shared_sprint = shared_sprint
         super()
       end
 
       form do |f|
+        f.hidden(name: :id) if model.id.present?
+
         f.text_field(
-          name: :goal,
+          name: :text,
           label: goal_label,
-          value: goal_value,
           caption: goal_caption,
           disabled:,
           full_width: true
@@ -51,23 +54,13 @@ module Backlogs
       end
 
       def goal_label
-        label = attribute_name(:goal)
+        label = Sprint.human_attribute_name(:goal)
         label += " #{I18n.t('backlogs.sprint_form.goal_for_this_project_suffix')}" if shared_sprint?
         label
       end
 
-      def goal_value
-        model.goal_text_for(project)
-      end
-
       def goal_caption
         I18n.t("backlogs.sprint_form.goal_caption") if shared_sprint?
-      end
-
-      private
-
-      def shared_sprint?
-        model.persisted? && !model.owned_by?(project)
       end
     end
   end

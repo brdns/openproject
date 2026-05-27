@@ -61,11 +61,13 @@ See COPYRIGHT and LICENSE files for more details.
           end
         end
         flex.with_row do
-          render Backlogs::Sprints::GoalForm.new(
-            f,
-            project:,
-            disabled: !can_edit_goal?
-          )
+          f.fields_for(:goal, goal_form_model) do |goal_fields|
+            render Backlogs::Sprints::GoalForm.new(
+              goal_fields,
+              shared_sprint: shared_sprint?,
+              disabled: !can_edit_goal?
+            )
+          end
         end
       end
     end
