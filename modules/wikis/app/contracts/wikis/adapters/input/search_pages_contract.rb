@@ -30,31 +30,10 @@
 
 module Wikis
   module Adapters
-    module Providers
-      module Internal
-        Registry = Dry::Core::Container::Namespace.new("internal") do
-          namespace("authentication") do
-            register(:user_bound, Authentication::UserBound)
-          end
-
-          namespace("commands") do
-            # ...
-          end
-
-          namespace("components") do
-            # ...
-          end
-
-          namespace("contracts") do
-            # ...
-          end
-
-          namespace("queries") do
-            register(:page_info, Queries::PageInfo)
-            register(:referencing_pages, Queries::ReferencingPages)
-            register(:relation_page_links, Queries::RelationPageLinks)
-            register(:search_pages, Queries::SearchPages)
-          end
+    module Input
+      class SearchPagesContract < DryApplicationContract
+        params do
+          required(:query).filled(:string)
         end
       end
     end

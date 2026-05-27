@@ -31,29 +31,20 @@
 module Wikis
   module Adapters
     module Providers
-      module Internal
-        Registry = Dry::Core::Container::Namespace.new("internal") do
-          namespace("authentication") do
-            register(:user_bound, Authentication::UserBound)
-          end
+      module XWiki
+        module Queries
+          class SearchPages < BaseQuery
+            def call(input_data:, **)
+              # TODO: use real API endpoints once available
 
-          namespace("commands") do
-            # ...
-          end
+              titles = [
+                "#{input_data.query} makes XWiki special",
+                "API documentation of #{input_data.query}",
+                "A brief introduction on configuring your own #{input_data.query}."
+              ]
 
-          namespace("components") do
-            # ...
-          end
-
-          namespace("contracts") do
-            # ...
-          end
-
-          namespace("queries") do
-            register(:page_info, Queries::PageInfo)
-            register(:referencing_pages, Queries::ReferencingPages)
-            register(:relation_page_links, Queries::RelationPageLinks)
-            register(:search_pages, Queries::SearchPages)
+              success(titles.map { Success(Results::PageInfo.new(identifier: "1338", title: it, href: "#", provider:)) })
+            end
           end
         end
       end
