@@ -69,6 +69,17 @@ class PersistedView < ApplicationRecord
     attr_writer :allowed_children
   end
 
+  # Resolves a (potentially user-supplied) class name to a view class, but only
+  # if it is an allowed child of this view. Returns nil for any unknown or
+  # forbidden name.
+  #
+  # `constantize` is applied only to the developer-controlled `allowed_children`
+  # list, never to the passed-in name, so untrusted input can never resolve an
+  # arbitrary constant.
+  def self.allowed_child_class(name)
+    allowed_children.index_with(&:constantize)[name.to_s]
+  end
+
   # Returns the query of this view or, if not set, the query of the parent view.
   def effective_query
     query || parent&.effective_query

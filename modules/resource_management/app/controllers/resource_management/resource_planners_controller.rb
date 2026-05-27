@@ -193,10 +193,7 @@ module ::ResourceManagement
     end
 
     def chosen_default_view_class
-      name = params.dig(:resource_planner, :default_view_class_name).to_s
-      return nil unless ResourcePlanner.allowed_children.include?(name)
-
-      name.constantize
+      ResourcePlanner.allowed_child_class(params.dig(:resource_planner, :default_view_class_name))
     end
 
     def render_create_failure(call)

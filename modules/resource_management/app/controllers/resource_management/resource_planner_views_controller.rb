@@ -170,9 +170,7 @@ module ::ResourceManagement
     end
 
     def allowed_view_class(name)
-      return nil unless ResourcePlanner.allowed_children.include?(name.to_s)
-
-      name.to_s.constantize
+      ResourcePlanner.allowed_child_class(name)
     end
 
     def find_resource_planner
